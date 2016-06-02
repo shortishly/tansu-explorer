@@ -1,0 +1,154 @@
+<link rel="import" href="../polymer/polymer.html">
+
+<link rel="import" href="../iron-ajax/iron-ajax.html">
+<link rel="import" href="../iron-form/iron-form.html">
+<link rel="import" href="../iron-icons/iron-icons.html">
+<link rel="import" href="../iron-list/iron-list.html">
+<link rel="import" href="../paper-button/paper-button.html">
+<link rel="import" href="../paper-input/paper-input.html">
+<link rel="import" href="../paper-item/paper-item.html">
+<link rel="import" href="../paper-listbox/paper-listbox.html">
+<link rel="import" href="../paper-toolbar/paper-toolbar.html">
+
+<dom-module id="tansu-explorer">
+    <template>
+        <style>
+         :host {
+             display: block;
+         }
+        </style>
+        
+        
+        <iron-ajax
+            id="kv"
+            auto
+            url="http://[[host]]:[[port]]/api/keys[[path]]?children=true&role=leader"
+            last-response="{{data}}">
+        </iron-ajax>
+
+        <paper-toolbar>
+            <paper-icon-button icon="refresh" on-tap="_refreshAction"></paper-icon-button>
+            <paper-icon-button icon="settings" on-tap="_settingsAction"></paper-icon-button>
+        </paper-toolbar>
+
+        <paper-input label="path" value="{{path}}">
+        </paper-input>
+
+        <paper-listbox
+            items="[[_toArray(data.children)]]"
+            selected-item="{{selectedItem}}">
+            <template is="dom-repeat" items="[[_toArray(data.children)]]">
+                <paper-item>
+                    <paper-item-body two-line>
+                        <div id="key">[[_substr(item.name, 1)]]</div>
+                        <div id="value" secondary>[[item.value.value]]</div>
+                    </paper-item-body>
+                </paper-item>
+            </template>
+        </paper-listbox>
+
+        <form id="setKeyValueForm" is="iron-form" method="post" action="http://[[host]]:[[port]]/api/keys/">
+            <paper-input
+                name="key"
+                label="key"
+                required
+                auto-validate
+                error-message="invalid!"
+                pattern="[a-z0-9][a-z0-9/]+[a-z0-9]"
+                value="[[_selectedKey(selectedItem)]]">
+
+                <div prefix>/</div>
+
+                <paper-icon-button suffix icon="clear"></paper-icon-button>
+            </paper-input>
+
+            <paper-input
+                name="value"
+                label="value"
+                value="[[_selectedValue(selectedItem)]]">
+            </paper-input>
+
+            <paper-button onclick="_submit(event)">Set</paper-button>
+        </form>
+    </template>
+    
+    <script>
+     Polymer({
+         
+         is: 'tansu-explorer',
+         
+         properties: {
+             selectedItem: {
+                 type: Object
+             },
+             
+             host: {
+                 type: String,
+                 value: 'localhost',
+             },
+             
+             port: {
+                 type: Number,
+                 value: 80,
+             },
+
+             path: {
+                 type: String,
+                 value: '/'
+             },
+
+             children: Object
+         },
+
+         ready: function() {
+             this.$$('#setKeyValueForm').addEventListener('iron-form-presubmit', function(event) {
+                 this.request.method = 'put';
+                 this.request.url = this.request.url + this[0].value;
+             });
+
+             this.$$('#setKeyValueForm').addEventListener('iron-form-response', function(event) {
+                 this.parentElement.$$('#kv').generateRequest();
+             });
+         },
+
+         _refreshAction: function() {
+             this.$$('#kv').generateRequest();
+         },
+
+
+         _selectedKey: function(item) {
+             return this._selected(item, "#key");
+         },
+
+         _selectedValue: function(item) {
+             return this._selected(item, "#value");
+         },
+
+         _selected: function(item, id) {
+             if (item === undefined) {
+                 return "";
+             } else {
+                 return Polymer.dom(item).querySelector(id).textContent;
+             }
+         },
+
+         _substr(string, index) {
+             return string.substr(index)
+         },
+
+         _toArray: function(obj) {
+             return Object.keys(obj).map(function(key, index) {
+                 return {
+                     name: key,
+                     index: index,
+                     value: obj[key]
+                 }
+             })
+         }
+     });
+
+     function _submit(event) {
+         Polymer.dom(event).localTarget.parentElement.submit();
+     }
+    </script>
+</dom-module>
